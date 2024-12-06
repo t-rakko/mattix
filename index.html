@@ -1,45 +1,249 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>画像切り替えアプリ</title>
-  <style>
-    #image-container {
-      text-align: center;
-      margin-top: 50px;
-    }
-    img {
-      width: 300px;
-      height: auto;
-      cursor: pointer;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>クロスチップ付きボードゲーム</title>
+    <style>
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    flex-direction: column;
+    font-family: Arial, sans-serif;
+}
+
+#board {
+    display: grid;
+    gap: 2px;
+}
+
+.cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.cross-chip {
+    background-color: red;
+    color: white;
+    font-weight: bold;
+}
+
+.highlight {
+    background-color: rgba(255, 165, 0, 0.5); /* オレンジ色 */
+}
+
+.highlight-secondary {
+    background-color: rgba(144, 238, 144, 0.5); /* 黄緑色 */
+}
+
+.taken {
+    background-color: #d0d0d0;
+    pointer-events: none; /* クリック不可 */
+}
+
+#gameOver {
+    color: red;
+    font-size: 20px;
+    margin-top: 20px;
+}
+
+#controls {
+    margin-top: 10px;
+}
+
+button {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    margin: 5px;
+}
+    </style>
 </head>
 <body>
-  <div id="image-container">
-    <img id="toggle-image" src="image1.jpg" alt="画像1">
-  </div>
+    <div id="board"></div>
+    <div id="info" style="text-align:center; margin-top:20px;">
+        <p>現在のプレイヤー: <span id="currentPlayer">1</span></p>
+        <p>スコア - プレイヤー1: <span id="score1">0</span>, プレイヤー2: <span id="score2">0</span></p>
+    </div>
+    <div id="gameOver" style="text-align:center;"></div>
+    <div id="controls">
+        <button id="size4x4">4×4 (Basic)</button>
+        <button id="size6x6">6×6 (Advanced)</button>
+        <button id="size8x8">8×8 (Expert)</button>
+    </div>
+    <script>
+        const board = document.getElementById("board");
+        const currentPlayerElem = document.getElementById("currentPlayer");
+        const score1Elem = document.getElementById("score1");
+        const score2Elem = document.getElementById("score2");
+        const gameOverElem = document.getElementById("gameOver");
 
-  <script>
-    // クリック回数をカウントする変数
-    let clickCount = 0;
+        let currentPlayer, scores, cells, crossChipIndex, gameActive;
+        let boardSize = 4; // 初期盤面サイズ
 
-    // 切り替える画像の要素を取得
-    const imageElement = document.getElementById('toggle-image');
+        // 初期化
+        function initializeGame() {
+            currentPlayer = 1;
+            scores = { 1: 0, 2: 0 };
+            cells = [];
+            crossChipIndex = Math.floor(Math.random() * boardSize * boardSize);
+            gameActive = true;
 
-    // 画像リスト
-    const images = ["image1.jpg", "image2.jpg"];
+            score1Elem.textContent = scores[1];
+            score2Elem.textContent = scores[2];
+            currentPlayerElem.textContent = currentPlayer;
+            gameOverElem.textContent = "";
 
-    // クリックイベントを設定
-    imageElement.addEventListener('click', () => {
-      // クリック回数を増やす
-      clickCount++;
+            // ボードの設定
+            board.style.gridTemplateColumns = `repeat(${boardSize}, 50px)`;
+            board.style.gridTemplateRows = `repeat(${boardSize}, 50px)`;
+            board.innerHTML = ""; // 盤面をクリア
 
-      // 偶奇によって画像を切り替える
-      const imageIndex = clickCount % 2; // 0: 偶数, 1: 奇数
-      imageElement.src = images[imageIndex];
-    });
-  </script>
+            const randomValues = generateRandomValues(boardSize * boardSize);
+            for (let i = 0; i < boardSize * boardSize; i++) {
+                const cell = document.createElement("div");
+                cell.classList.add("cell");
+                cell.dataset.index = i;
+
+                if (i === crossChipIndex) {
+                    // クロスチップの初期位置を `taken` 状態に
+                    cell.classList.add("cross-chip", "taken");
+                    cell.textContent = "C";
+                    cell.dataset.value = 0; // スコアには加算されない
+                } else {
+                    const value = randomValues.pop();
+                    cell.textContent = value;
+                    cell.dataset.value = value;
+
+                    cell.addEventListener("click", () => handleCellClick(cell));
+                }
+
+                board.appendChild(cell);
+                cells.push(cell);
+            }
+            highlightValidMoves();
+        }
+
+        // ランダム値生成
+        function generateRandomValues(count) {
+            const values = [];
+            for (let i = 0; i < count - 1; i++) {
+                values.push(Math.floor(Math.random() * 9) + 1); // 1～9のランダム値
+            }
+            return values.sort(() => Math.random() - 0.5); // シャッフル
+        }
+
+        // セルクリック処理
+        function handleCellClick(cell) {
+            if (!gameActive) return;
+
+            const index = parseInt(cell.dataset.index);
+            if (!isMoveValid(index)) return; // 不正な操作は無視
+
+            const value = parseInt(cell.dataset.value);
+            
+            // スコア加算
+            scores[currentPlayer] += value || 0; // クロスチップの得点は0
+            score1Elem.textContent = scores[1];
+            score2Elem.textContent = scores[2];
+
+            // クロスチップを移動
+            cells[crossChipIndex].classList.remove("cross-chip");
+            cells[crossChipIndex].textContent = ""; // 移動元は空に
+            crossChipIndex = index;
+            cell.classList.add("cross-chip");
+            cell.textContent = "C";
+
+            // セルを使用済みに
+            if (value) {
+                cell.classList.add("taken");
+                cell.textContent = "C"; // クロスチップがあることを示す
+            }
+
+            // プレイヤー交代
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            currentPlayerElem.textContent = currentPlayer;
+
+            // 移動可能範囲を更新
+            if (!highlightValidMoves()) {
+                endGame(); // 有効な移動がない場合、ゲーム終了
+            }
+        }
+
+        // 有効な移動範囲を強調表示
+        function highlightValidMoves() {
+            const crossRow = Math.floor(crossChipIndex / boardSize);
+            const crossCol = crossChipIndex % boardSize;
+
+            let validMoveExists = false;
+
+            cells.forEach((cell, index) => {
+                cell.classList.remove("highlight", "highlight-secondary");
+                const row = Math.floor(index / boardSize);
+                const col = index % boardSize;
+
+                if (currentPlayer === 1 && row === crossRow && !cell.classList.contains("taken")) {
+                    cell.classList.add("highlight");
+                    validMoveExists = true;
+                } else if (currentPlayer === 2 && col === crossCol && !cell.classList.contains("taken")) {
+                    cell.classList.add("highlight-secondary");
+                    validMoveExists = true;
+                }
+            });
+
+            return validMoveExists; // 有効な移動が存在するかを返す
+        }
+
+        // 指定のインデックスが有効な移動か確認
+        function isMoveValid(index) {
+            const crossRow = Math.floor(crossChipIndex / boardSize);
+            const crossCol = crossChipIndex % boardSize;
+            const row = Math.floor(index / boardSize);
+            const col = index % boardSize;
+
+            if (currentPlayer === 1) return row === crossRow && !cells[index].classList.contains("taken");
+            if (currentPlayer === 2) return col === crossCol && !cells[index].classList.contains("taken");
+            return false;
+        }
+
+        // ゲーム終了処理
+        function endGame() {
+            gameActive = false;
+            let message;
+            if (scores[1] > scores[2]) {
+                message = "ゲーム終了: プレイヤー1の勝ち!";
+            } else if (scores[1] < scores[2]) {
+                message = "ゲーム終了: プレイヤー2の勝ち!";
+            } else {
+                message = "ゲーム終了: 引き分け!";
+            }
+            gameOverElem.textContent = message;
+        }
+
+        // サイズ変更ボタンの処理
+        document.getElementById("size4x4").addEventListener("click", () => {
+            boardSize = 4;
+            initializeGame();
+        });
+        document.getElementById("size6x6").addEventListener("click", () => {
+            boardSize = 6;
+            initializeGame();
+        });
+        document.getElementById("size8x8").addEventListener("click", () => {
+            boardSize = 8;
+            initializeGame();
+        });
+
+        initializeGame(); // ゲームを開始
+    </script>
 </body>
 </html>
+``
