@@ -3,68 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クロスチップ付きボードゲーム</title>
+    <title>WebMattix</title>
     <style>
-body {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    margin: 0;
-    flex-direction: column;
-    font-family: Arial, sans-serif;
-}
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            flex-direction: column;
+            font-family: Arial, sans-serif;
+        }
 
-#board {
-    display: grid;
-    gap: 2px;
-}
+        #board {
+            display: grid;
+            gap: 2px;
+        }
 
-.cell {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: #f0f0f0;
-    border: 1px solid #ccc;
-    font-size: 20px;
-    cursor: pointer;
-}
+        .cell {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            font-size: 20px;
+            cursor: pointer;
+        }
 
-.cross-chip {
-    background-color: red;
-    color: white;
-    font-weight: bold;
-}
+        .cross-chip {
+            background-color: red;
+            color: white;
+            font-weight: bold;
+        }
 
-.highlight {
-    background-color: rgba(255, 165, 0, 0.5); /* オレンジ色 */
-}
+        .highlight {
+            background-color: rgba(255, 165, 0, 0.5); /* オレンジ色 */
+        }
 
-.highlight-secondary {
-    background-color: rgba(144, 238, 144, 0.5); /* 黄緑色 */
-}
+        .highlight-secondary {
+            background-color: rgba(144, 238, 144, 0.5); /* 黄緑色 */
+        }
 
-.taken {
-    background-color: #d0d0d0;
-    pointer-events: none; /* クリック不可 */
-}
+        .taken {
+            background-color: #d0d0d0;
+            pointer-events: none; /* クリック不可 */
+        }
 
-#gameOver {
-    color: red;
-    font-size: 20px;
-    margin-top: 20px;
-}
+        #gameOver {
+            color: red;
+            font-size: 20px;
+            margin-top: 20px;
+        }
 
-#controls {
-    margin-top: 10px;
-}
+        #controls {
+            margin-top: 10px;
+        }
 
-button {
-    padding: 10px 20px;
-    font-size: 16px;
-    cursor: pointer;
-    margin: 5px;
-}
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+        }
     </style>
 </head>
 <body>
@@ -75,9 +75,8 @@ button {
     </div>
     <div id="gameOver" style="text-align:center;"></div>
     <div id="controls">
-        <button id="size4x4">4×4 (Basic)</button>
-        <button id="size6x6">6×6 (Advanced)</button>
-        <button id="size8x8">8×8 (Expert)</button>
+        <button id="size4x4">Basic</button>
+        <button id="size6x6">Advanced</button>
     </div>
     <script>
         const board = document.getElementById("board");
@@ -107,7 +106,7 @@ button {
             board.style.gridTemplateRows = `repeat(${boardSize}, 50px)`;
             board.innerHTML = ""; // 盤面をクリア
 
-            const randomValues = generateRandomValues(boardSize * boardSize);
+            const scoreValues = generateScoreValues(boardSize);
             for (let i = 0; i < boardSize * boardSize; i++) {
                 const cell = document.createElement("div");
                 cell.classList.add("cell");
@@ -119,7 +118,7 @@ button {
                     cell.textContent = "C";
                     cell.dataset.value = 0; // スコアには加算されない
                 } else {
-                    const value = randomValues.pop();
+                    const value = scoreValues.pop();
                     cell.textContent = value;
                     cell.dataset.value = value;
 
@@ -132,12 +131,19 @@ button {
             highlightValidMoves();
         }
 
-        // ランダム値生成
-        function generateRandomValues(count) {
-            const values = [];
-            for (let i = 0; i < count - 1; i++) {
-                values.push(Math.floor(Math.random() * 9) + 1); // 1～9のランダム値
+        // 盤面サイズごとに点数を生成。4×4、6×6の場合は実際のMattixに合わせる
+        function generateScoreValues(boardSize) {
+            values = [];
+            if (boardSize == 4) {
+                values = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8];
+            } else if (boardSize == 6) {
+                values = [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, -1, -1, -2, -2, -3, -3, -4, -5, -6, -7, -8, -9, -10];
+            } else {
+                for (let i = 0; i < boardSize * boardSize - 1; i++) {
+                    values.push(Math.floor(Math.random() * 9) + 1); // 1～9のランダム値
+                }
             }
+
             return values.sort(() => Math.random() - 0.5); // シャッフル
         }
 
@@ -237,13 +243,8 @@ button {
             boardSize = 6;
             initializeGame();
         });
-        document.getElementById("size8x8").addEventListener("click", () => {
-            boardSize = 8;
-            initializeGame();
-        });
 
         initializeGame(); // ゲームを開始
     </script>
 </body>
 </html>
-``
