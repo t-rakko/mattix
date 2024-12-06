@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>画像切り替えアプリ</title>
+  <style>
+    #image-container {
+      text-align: center;
+      margin-top: 50px;
+    }
+    img {
+      width: 300px;
+      height: auto;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="image-container">
+    <img id="toggle-image" src="image1.jpg" alt="画像1">
+  </div>
+
+  <script>
+    // クリック回数をカウントする変数
+    let clickCount = 0;
+
+    // 切り替える画像の要素を取得
+    const imageElement = document.getElementById('toggle-image');
+
+    // 画像リスト
+    const images = ["image1.jpg", "image2.jpg"];
+
+    // クリックイベントを設定
+    imageElement.addEventListener('click', () => {
+      // クリック回数を増やす
+      clickCount++;
+
+      // 偶奇によって画像を切り替える
+      const imageIndex = clickCount % 2; // 0: 偶数, 1: 奇数
+      imageElement.src = images[imageIndex];
+    });
+  </script>
+</body>
+</html>
