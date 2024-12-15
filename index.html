@@ -213,7 +213,7 @@
 
         async function processCPUIfNeeded() {
             //クリック処理の遅れを無くすために少しだけ待つ
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise(resolve => setTimeout(resolve, 100));
 
             if (!isGameActive) return;
             if (!Module.JS_isCurrentPlayerCPU()) return;
