@@ -15,6 +15,23 @@
             font-family: Arial, sans-serif;
         }
 
+        #controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            gap: 15px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px; /* 項目間の間隔 */
+            margin-bottom: 0px;
+        }
+
         #board {
             display: grid;
             gap: 2px;
@@ -31,7 +48,6 @@
         }
 
         .cross-chip {
-            background-color: red;
             color: white;
             font-weight: bold;
         }
@@ -49,202 +65,219 @@
             pointer-events: none; /* クリック不可 */
         }
 
+        button, select {
+            padding: 10px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        #info {
+            margin-top: 20px;
+            text-align: center;
+        }
+
         #gameOver {
             color: red;
             font-size: 20px;
             margin-top: 20px;
-        }
-
-        #controls {
-            margin-top: 10px;
-        }
-
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            margin: 5px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
-    <div id="board"></div>
-    <div id="info" style="text-align:center; margin-top:20px;">
-        <p>現在のプレイヤー: <span id="currentPlayer">1</span></p>
-        <p>スコア - プレイヤー1: <span id="score1">0</span>, プレイヤー2: <span id="score2">0</span></p>
-    </div>
-    <div id="gameOver" style="text-align:center;"></div>
     <div id="controls">
-        <button id="size4x4">Basic</button>
-        <button id="size6x6">Advanced</button>
+        <div class="control-group">
+            <label for="boardSize">盤面サイズ:</label>
+            <select id="boardSize">
+                <option value="4">4×4</option>
+                <option value="6">6×6</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <p>先手:</p>
+            <select id="player1Type">
+                <option value="human">人間</option>
+                <option value="cpu">CPU</option>
+            </select>
+            <div id="player1CpuSettings">
+                <label for="player1CpuStrength">CPUの強さ:</label>
+                <select id="player1CpuStrength">
+                    <option value="1">ふつう</option>
+                    <option value="3">つよい</option>
+                    <option value="99">さいきょう</option>
+                </select>
+            </div>
+        </div>
+        <div class="control-group">
+            <p>後手:</p>
+            <select id="player2Type">
+                <option value="human">人間</option>
+                <option value="cpu">CPU</option>
+            </select>
+            <div id="player2CpuSettings">
+                <label for="player2CpuStrength">CPUの強さ:</label>
+                <select id="player2CpuStrength">
+                    <option value="1">ふつう</option>
+                    <option value="3">つよい</option>
+                    <option value="99">さいきょう</option>
+                </select>
+            </div>
+        </div>
+        <button id="startButton">開始</button>
     </div>
+    <div id="board"></div>
+    <div id="info">
+        <p><span id="currentPlayerString"></span></p>
+        <p><span id="scoreString"></span></p>
+    </div>
+    <div id="gameOver"></div>
+
+    <script src="Algorithm_JS.js"></script>
     <script>
         const board = document.getElementById("board");
-        const currentPlayerElem = document.getElementById("currentPlayer");
-        const score1Elem = document.getElementById("score1");
-        const score2Elem = document.getElementById("score2");
-        const gameOverElem = document.getElementById("gameOver");
+        const player1Type = document.getElementById("player1Type");
+        const player2Type = document.getElementById("player2Type");
+        const startButton = document.getElementById("startButton");
+        const currentPlayerString = document.getElementById("currentPlayerString");
+        const currentScoreString = document.getElementById("scoreString");
+        const gameoverString = document.getElementById("gameOver");
 
-        let currentPlayer, scores, cells, crossChipIndex, gameActive;
-        let boardSize = 4; // 初期盤面サイズ
+        let isGameActive = false;
+        let isCPUThinkLocking = false;
 
-        // 初期化
+        function updateCPUSettingView() {
+            const player1CpuSettings = document.getElementById("player1CpuSettings");
+            const player2CpuSettings = document.getElementById("player2CpuSettings");
+            player1CpuSettings.style.display = player1Type.value === "cpu" ? "block" : "none";
+            player2CpuSettings.style.display = player2Type.value === "cpu" ? "block" : "none";
+        }
+        player1Type.addEventListener("change", updateCPUSettingView);
+        player2Type.addEventListener("change", updateCPUSettingView);
+
         function initializeGame() {
-            currentPlayer = 1;
-            scores = { 1: 0, 2: 0 };
-            cells = [];
-            crossChipIndex = Math.floor(Math.random() * boardSize * boardSize);
-            gameActive = true;
+            const boardSize = parseInt(document.getElementById("boardSize").value);
+            const player1IsCpu = player1Type.value === "cpu" ? true : false;
+            const player1CpuStrength = parseInt(document.getElementById("player1CpuStrength").value);
+            const player2IsCpu = player2Type.value === "cpu" ? true : false;
+            const player2CpuStrength = parseInt(document.getElementById("player2CpuStrength").value);
 
-            score1Elem.textContent = scores[1];
-            score2Elem.textContent = scores[2];
-            currentPlayerElem.textContent = currentPlayer;
-            gameOverElem.textContent = "";
+            Module.JS_initializeGame(boardSize, player1IsCpu, player1CpuStrength, player2IsCpu, player2CpuStrength);
+            isGameActive = true;
 
-            // ボードの設定
+            updateBoardAndInfo();
+            processCPUIfNeeded();
+        }
+
+        function updateBoardAndInfo() {
+            // [NOTE]クリックのたびに毎回全セルを描画し直すのは処理性能的に懸念があるが、Viewにデータを持たせないことを優先した。
+            const boardSize = Module.JS_getBoardSize();
             board.style.gridTemplateColumns = `repeat(${boardSize}, 50px)`;
             board.style.gridTemplateRows = `repeat(${boardSize}, 50px)`;
-            board.innerHTML = ""; // 盤面をクリア
+            board.innerHTML = "";
 
-            const scoreValues = generateScoreValues(boardSize);
             for (let i = 0; i < boardSize * boardSize; i++) {
                 const cell = document.createElement("div");
                 cell.classList.add("cell");
-                cell.dataset.index = i;
+                cell.dataset.index = i; // ChipIndex = 盤面上の座標, ChipValue = スコア
 
-                if (i === crossChipIndex) {
-                    // クロスチップの初期位置を `taken` 状態に
-                    cell.classList.add("cross-chip", "taken");
-                    cell.textContent = "C";
-                    cell.dataset.value = 0; // スコアには加算されない
+                if (Module.JS_isTaken(i)) {
+                    cell.classList.add("taken");
+                    cell.dataset.value = 0;
+                    if (Module.JS_isCrossChip(i)) {
+                        cell.classList.add("cross-chip");
+                        cell.textContent = "C";
+                    } else {
+                        cell.textContent = "";
+                    }
                 } else {
-                    const value = scoreValues.pop();
+                    const value = Module.JS_getChipValue(i);
                     cell.textContent = value;
                     cell.dataset.value = value;
-
-                    cell.addEventListener("click", () => handleCellClick(cell));
                 }
+                if (Module.JS_needFirstHighlight(i)) {
+                    cell.classList.add("highlight");
+                }
+                if (Module.JS_needSecondHighlight(i)) {
+                    cell.classList.add("highlight-secondary");
+                }
+                cell.addEventListener("click", () => handleCellClick(cell));
 
                 board.appendChild(cell);
-                cells.push(cell);
             }
-            highlightValidMoves();
+
+            currentPlayerString.textContent = Module.JS_getCurrentPlayerString();
+            currentScoreString.textContent = Module.JS_getScoreString();
+            gameoverString.textContent = "";
         }
 
-        // 盤面サイズごとに点数を生成。4×4、6×6の場合は実際のMattixに合わせる
-        function generateScoreValues(boardSize) {
-            values = [];
-            if (boardSize == 4) {
-                values = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8];
-            } else if (boardSize == 6) {
-                values = [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, -1, -1, -2, -2, -3, -3, -4, -5, -6, -7, -8, -9, -10];
-            } else {
-                for (let i = 0; i < boardSize * boardSize - 1; i++) {
-                    values.push(Math.floor(Math.random() * 9) + 1); // 1～9のランダム値
-                }
+        async function processCPUIfNeeded() {
+            //クリック処理の遅れを無くすために少しだけ待つ
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            if (!isGameActive) return;
+            if (!Module.JS_isCurrentPlayerCPU()) return;
+
+            //1秒間考えて打つ。
+            isCPUThinkLocking = true;
+            const promise1 = new Promise(resolve => {
+                const nextMove = Module.JS_calculateNextMove();
+                resolve(nextMove);
+            });
+            const promise2 = new Promise(resolve => {
+                setTimeout(resolve, 1000);
+            });
+            const [nextMove, _] = await Promise.all([promise1, promise2]);
+            isCPUThinkLocking = false;
+
+            Module.JS_executeMove(nextMove);
+
+            updateBoardAndInfo()
+
+            if (Module.JS_isFinished()) {
+                endGame();
             }
 
-            return values.sort(() => Math.random() - 0.5); // シャッフル
+            processCPUIfNeeded();
         }
 
         // セルクリック処理
         function handleCellClick(cell) {
-            if (!gameActive) return;
+            if (!isGameActive) return;
+            if (isCPUThinkLocking) return;
 
-            const index = parseInt(cell.dataset.index);
-            if (!isMoveValid(index)) return; // 不正な操作は無視
+            // 有効な処理か判定
+            const chipIndex = parseInt(cell.dataset.index);
+            if (!Module.JS_isValidMove(chipIndex)) return;
 
-            const value = parseInt(cell.dataset.value);
-            
-            // スコア加算
-            scores[currentPlayer] += value || 0; // クロスチップの得点は0
-            score1Elem.textContent = scores[1];
-            score2Elem.textContent = scores[2];
+            // 実行
+            Module.JS_executeMove(chipIndex);
 
-            // クロスチップを移動
-            cells[crossChipIndex].classList.remove("cross-chip");
-            cells[crossChipIndex].textContent = ""; // 移動元は空に
-            crossChipIndex = index;
-            cell.classList.add("cross-chip");
-            cell.textContent = "C";
+            // ボード更新
+            updateBoardAndInfo()
 
-            // セルを使用済みに
-            if (value) {
-                cell.classList.add("taken");
-                cell.textContent = "C"; // クロスチップがあることを示す
+            // ゲーム終了していたら終了
+            if (Module.JS_isFinished()) {
+                endGame();
             }
 
-            // プレイヤー交代
-            currentPlayer = currentPlayer === 1 ? 2 : 1;
-            currentPlayerElem.textContent = currentPlayer;
-
-            // 移動可能範囲を更新
-            if (!highlightValidMoves()) {
-                endGame(); // 有効な移動がない場合、ゲーム終了
-            }
+            // CPUの手番に移行
+            processCPUIfNeeded();
         }
 
-        // 有効な移動範囲を強調表示
-        function highlightValidMoves() {
-            const crossRow = Math.floor(crossChipIndex / boardSize);
-            const crossCol = crossChipIndex % boardSize;
-
-            let validMoveExists = false;
-
-            cells.forEach((cell, index) => {
-                cell.classList.remove("highlight", "highlight-secondary");
-                const row = Math.floor(index / boardSize);
-                const col = index % boardSize;
-
-                if (currentPlayer === 1 && row === crossRow && !cell.classList.contains("taken")) {
-                    cell.classList.add("highlight");
-                    validMoveExists = true;
-                } else if (currentPlayer === 2 && col === crossCol && !cell.classList.contains("taken")) {
-                    cell.classList.add("highlight-secondary");
-                    validMoveExists = true;
-                }
-            });
-
-            return validMoveExists; // 有効な移動が存在するかを返す
-        }
-
-        // 指定のインデックスが有効な移動か確認
-        function isMoveValid(index) {
-            const crossRow = Math.floor(crossChipIndex / boardSize);
-            const crossCol = crossChipIndex % boardSize;
-            const row = Math.floor(index / boardSize);
-            const col = index % boardSize;
-
-            if (currentPlayer === 1) return row === crossRow && !cells[index].classList.contains("taken");
-            if (currentPlayer === 2) return col === crossCol && !cells[index].classList.contains("taken");
-            return false;
-        }
-
-        // ゲーム終了処理
         function endGame() {
-            gameActive = false;
-            let message;
-            if (scores[1] > scores[2]) {
-                message = "ゲーム終了: プレイヤー1の勝ち!";
-            } else if (scores[1] < scores[2]) {
-                message = "ゲーム終了: プレイヤー2の勝ち!";
-            } else {
-                message = "ゲーム終了: 引き分け!";
-            }
-            gameOverElem.textContent = message;
+            isGameActive = false;
+            gameoverString.textContent = Module.JS_getGameOverString();
         }
 
-        // サイズ変更ボタンの処理
-        document.getElementById("size4x4").addEventListener("click", () => {
-            boardSize = 4;
+        startButton.addEventListener("click", () => {
+            if (isCPUThinkLocking) return;
             initializeGame();
         });
-        document.getElementById("size6x6").addEventListener("click", () => {
-            boardSize = 6;
+        Module.onRuntimeInitialized = _ => {
+            updateCPUSettingView();
             initializeGame();
-        });
-
-        initializeGame(); // ゲームを開始
+        };
     </script>
 </body>
 </html>
