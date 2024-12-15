@@ -209,11 +209,14 @@
             currentPlayerString.textContent = Module.JS_getCurrentPlayerString();
             currentScoreString.textContent = Module.JS_getScoreString();
             gameoverString.textContent = "";
+
         }
 
         async function processCPUIfNeeded() {
-            //クリック処理の遅れを無くすために少しだけ待つ
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // CPUの思考(重い処理)の前に画面を強制再描画するため、requestAnimationFrameを2回呼ぶ
+            // https://developer.mozilla.org/ja/docs/Web/API/Web_Animations_API/Tips
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            await new Promise(resolve => requestAnimationFrame(resolve));
 
             if (!isGameActive) return;
             if (!Module.JS_isCurrentPlayerCPU()) return;
@@ -221,19 +224,19 @@
             //1秒間考えて打つ。
             isCPUThinkLocking = true;
             const promise1 = new Promise(resolve => {
+                setTimeout(resolve, 1000);
+            });
+            const promise2 = new Promise(resolve => {
                 const nextMove = Module.JS_calculateNextMove();
                 resolve(nextMove);
             });
-            const promise2 = new Promise(resolve => {
-                setTimeout(resolve, 1000);
-            });
-            const [nextMove, _] = await Promise.all([promise1, promise2]);
+            const [_1, nextMove] = await Promise.all([promise1, promise2]);
             isCPUThinkLocking = false;
 
             Module.JS_executeMove(nextMove);
 
-            updateBoardAndInfo()
-
+            updateBoardAndInfo();
+            
             if (Module.JS_isFinished()) {
                 endGame();
             }
