@@ -225,13 +225,13 @@
                 setTimeout(resolve, 1000);
             });
             const promise2 = new Promise(resolve => {
-                const nextMove = Module.JS_calculateNextMove();
+                const nextMove = Module.JS_calculateAction();
                 resolve(nextMove);
             });
             const [_1, nextMove] = await Promise.all([promise1, promise2]);
             isCPUThinkLocking = false;
 
-            Module.JS_executeMove(nextMove);
+            Module.JS_advance(nextMove);
 
             updateBoardAndInfo();
             
@@ -249,10 +249,10 @@
 
             // 有効な処理か判定
             const chipIndex = parseInt(cell.dataset.index);
-            if (!Module.JS_isValidMove(chipIndex)) return;
+            if (!Module.JS_isValidAction(chipIndex)) return;
 
             // 実行
-            Module.JS_executeMove(chipIndex);
+            Module.JS_advance(chipIndex);
 
             // ボード更新
             updateBoardAndInfo()
