@@ -80,8 +80,29 @@
         #gameOver {
             color: red;
             font-size: 20px;
-            margin-top: 20px;
             text-align: center;
+        }
+
+        .replay-controls {
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .replay-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .replay-slider {
+            width: 200px;
         }
     </style>
 </head>
@@ -130,6 +151,11 @@
         <p><span id="scoreString"></span></p>
     </div>
     <div id="gameOver"></div>
+    <div id="replay-controls" class="replay-controls">
+        <button id="replay-prev" class="replay-button">◀</button>
+        <input type="range" id="replay-slider" min="0" value="0" class="replay-slider">
+        <button id="replay-next" class="replay-button">▶</button>
+    </div>
 
     <script src="Algorithm_JS.js"></script>
     <script>
@@ -140,6 +166,9 @@
         const currentPlayerString = document.getElementById("currentPlayerString");
         const currentScoreString = document.getElementById("scoreString");
         const gameoverString = document.getElementById("gameOver");
+        const replayPrev = document.getElementById("replay-prev");
+        const replayNext = document.getElementById("replay-next");
+        const replaySlider = document.getElementById("replay-slider");
 
         let isGameActive = false;
         let isCPUThinkLocking = false;
@@ -163,6 +192,8 @@
             Module.JS_initializeGame(boardSize, player1IsCpu, player1CpuStrength, player2IsCpu, player2CpuStrength);
             isGameActive = true;
 
+            gameoverString.textContent = "";
+            disableReplay();
             updateBoardAndInfo();
             processCPUIfNeeded();
         }
@@ -206,8 +237,6 @@
 
             currentPlayerString.textContent = Module.JS_getCurrentPlayerString();
             currentScoreString.textContent = Module.JS_getScoreString();
-            gameoverString.textContent = "";
-
         }
 
         async function processCPUIfNeeded() {
@@ -234,7 +263,7 @@
             Module.JS_advance(nextMove);
 
             updateBoardAndInfo();
-            
+
             if (Module.JS_isFinished()) {
                 endGame();
             }
@@ -269,12 +298,48 @@
         function endGame() {
             isGameActive = false;
             gameoverString.textContent = Module.JS_getGameOverString();
+            enableReplay();
+        }
+
+        function enableReplay() {
+            Module.JS_freezeReplay();
+            const maxReplayTurn = Module.JS_getMaxReplayTurn();
+            replaySlider.min = 0;
+            replaySlider.max = maxReplayTurn;
+            replaySlider.value = maxReplayTurn;
+            replayPrev.style.display = "block";
+            replayNext.style.display = "block";
+            replaySlider.style.display = "block";
+        }
+
+        function disableReplay() {
+            replayPrev.style.display = "none";
+            replayNext.style.display = "none";
+            replaySlider.style.display = "none";
         }
 
         startButton.addEventListener("click", () => {
             if (isCPUThinkLocking) return;
             initializeGame();
         });
+        replayPrev.addEventListener("click", () => {
+            Module.JS_replayBack();
+            updateBoardAndInfo();
+            replaySlider.value = Module.JS_getCurrentReplayTurn();
+        });
+
+        replayNext.addEventListener("click", () => {
+            Module.JS_replayForward();
+            updateBoardAndInfo();
+            replaySlider.value = Module.JS_getCurrentReplayTurn();
+        });
+
+        replaySlider.addEventListener("input", (event) => {
+            const targetTurn = parseInt(event.target.value, 10);
+            Module.JS_replayJumpToTurn(targetTurn);
+            updateBoardAndInfo();
+        });
+
         Module.onRuntimeInitialized = _ => {
             updateCPUSettingView();
             initializeGame();
